@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - APP_ENV=development
+    volumes:
+      - ../configs:/app/configs:ro
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - kunpeng-network
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: kunpeng
+      MYSQL_USER: kunpeng
+      MYSQL_PASSWORD: kunpeng123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - kunpeng-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - kunpeng-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ../web/static:/usr/share/nginx/html:ro
+    depends_on:
+      - app
+    networks:
+      - kunpeng-network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  kunpeng-network:
+    driver: bridge
