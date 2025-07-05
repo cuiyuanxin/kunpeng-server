@@ -86,7 +86,7 @@ docker-build:
 # Docker运行
 docker-run:
 	@echo "Running Docker container..."
-	@docker run -p 8080:8080 --name $(APP_NAME) $(APP_NAME):$(VERSION)
+	@docker run -p 8081:8080 --name $(APP_NAME) $(APP_NAME):$(VERSION)
 
 # Docker Compose启动
 docker-up:
