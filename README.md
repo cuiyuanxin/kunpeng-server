@@ -29,7 +29,7 @@ kunpeng/
 ├── deployments/            # 系统和容器编排部署配置
 │   ├── Dockerfile         # Docker镜像构建文件
 │   └── docker-compose.yml # Docker Compose配置
-├── docs/                   # 设计和用户文档
+├── docs/                   # 详细文档（配置、数据库、认证、权限等）
 ├── examples/               # 应用程序或公共库的示例
 ├── githooks/               # Git钩子
 ├── init/                   # 系统初始化配置
@@ -90,6 +90,7 @@ kunpeng/
 - **开发工具**: 热重载、代码检查、格式化等
 - **容器化**: Docker + Docker Compose支持
 - **测试覆盖**: 单元测试 + 集成测试
+- **完整文档**: 提供详细的功能文档和开发指南
 
 ## 快速开始
 
@@ -429,6 +430,30 @@ curl -X GET http://localhost:8080/api/v1/user/profile \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
+## 详细文档
+
+项目提供了完整的文档体系，涵盖各个功能模块的详细说明：
+
+### 核心功能文档
+- [配置管理](docs/CONFIG.md) - 详细的配置系统说明和示例
+- [数据库指南](docs/DATABASE_GUIDE.md) - 多数据库支持、驱动安装和配置
+- [数据库迁移](docs/MIGRATION.md) - 数据库迁移系统和最佳实践
+- [JWT认证](docs/JWT_AUTH.md) - JWT认证机制和使用方法
+- [RBAC权限控制](docs/RBAC_RESTful_Permission_Guide.md) - 基于角色的访问控制指南
+- [日志系统](docs/LOGGING.md) - 日志配置和管理
+- [Redis缓存](docs/REDIS.md) - Redis配置和使用
+
+### 开发文档
+- [处理器和服务](docs/HANDLER_SERVICE.md) - HTTP处理器和业务服务层
+- [数据模型](docs/MODELS.md) - 数据模型定义和关系
+- [中间件](docs/MIDDLEWARE.md) - 中间件系统和自定义中间件
+- [路由管理](docs/ROUTER.md) - 路由配置和管理
+- [响应处理](docs/RESPONSE.md) - 统一响应格式和错误处理
+- [工具函数](docs/UTILS.md) - 通用工具函数库
+
+### 系统文档
+- [管理系统](docs/ADMIN_SYSTEM.md) - 后台管理系统功能
+
 ## 配置说明
 
 主要配置项说明：
@@ -526,7 +551,7 @@ IaaS，PaaS，系统和容器编排部署配置和模板（docker-compose，kube
 额外的外部测试应用程序和测试数据。你可以随时根据需求构造/test目录。
 
 ### `/docs`
-设计和用户文档（除了你的godoc生成的文档）。
+详细的功能文档和开发指南，包括配置管理、数据库、认证、权限控制等各个模块的完整说明。
 
 ### `/examples`
 你的应用程序和/或公共库的示例。

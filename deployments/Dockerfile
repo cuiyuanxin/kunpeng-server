@@ -1,13 +1,19 @@
 # 多阶段构建 Dockerfile
 
 # 构建阶段
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
 
 # 安装必要的包
 RUN apk add --no-cache git
+
+# 设置Go代理和环境变量
+ENV GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+ENV GOSUMDB=sum.golang.google.cn
+ENV GO111MODULE=on
+ENV CGO_ENABLED=0
 
 # 复制 go mod 文件
 COPY go.mod go.sum ./
@@ -19,7 +25,7 @@ RUN go mod download
 COPY . .
 
 # 构建应用程序
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main cmd/main.go
+RUN GOOS=linux go build -a -installsuffix cgo -o main cmd/main.go
 
 # 运行阶段
 FROM alpine:latest

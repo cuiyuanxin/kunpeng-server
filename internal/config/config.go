@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -11,12 +12,13 @@ import (
 
 // Config 应用配置结构
 type Config struct {
-	App      App      `mapstructure:"app"`
-	Server   Server   `mapstructure:"server"`
-	Database Database `mapstructure:"database"`
-	Redis    Redis    `mapstructure:"redis"`
-	Logging  Logging  `mapstructure:"logging"`
-	JWT      JWT      `mapstructure:"jwt"`
+	App       App                 `mapstructure:"app"`
+	Server    Server              `mapstructure:"server"`
+	Database  Database            `mapstructure:"database"`  // 主数据库配置（向后兼容）
+	Databases map[string]Database `mapstructure:"databases"` // 多数据库配置
+	Redis     Redis               `mapstructure:"redis"`
+	Logging   Logging             `mapstructure:"logging"`
+	JWT       JWT                 `mapstructure:"jwt"`
 }
 
 // 全局viper实例
@@ -41,15 +43,34 @@ type Server struct {
 
 // Database 数据库配置
 type Database struct {
-	Driver          string        `mapstructure:"driver"`
-	Host            string        `mapstructure:"host"`
-	Port            int           `mapstructure:"port"`
-	Username        string        `mapstructure:"username"`
-	Password        string        `mapstructure:"password"`
-	Database        string        `mapstructure:"database"`
-	MaxOpenConns    int           `mapstructure:"max_open_conns"`
-	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
-	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
+	// 基础连接配置
+	Driver          string        `mapstructure:"driver"`           // 数据库驱动: mysql, postgres, sqlite, sqlserver, clickhouse
+	Host            string        `mapstructure:"host"`             // 主机地址
+	Port            int           `mapstructure:"port"`             // 端口
+	Username        string        `mapstructure:"username"`         // 用户名
+	Password        string        `mapstructure:"password"`         // 密码
+	Database        string        `mapstructure:"database"`         // 数据库名
+	Schema          string        `mapstructure:"schema"`           // 模式名（PostgreSQL等）
+	SSLMode         string        `mapstructure:"ssl_mode"`         // SSL模式（PostgreSQL等）
+	Timezone        string        `mapstructure:"timezone"`         // 时区
+	Charset         string        `mapstructure:"charset"`          // 字符集
+	
+	// SQLite特有配置
+	FilePath        string        `mapstructure:"file_path"`        // SQLite文件路径
+	
+	// 连接池配置
+	MaxOpenConns    int           `mapstructure:"max_open_conns"`   // 最大打开连接数
+	MaxIdleConns    int           `mapstructure:"max_idle_conns"`   // 最大空闲连接数
+	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"` // 连接最大生命周期
+	ConnMaxIdleTime time.Duration `mapstructure:"conn_max_idle_time"` // 连接最大空闲时间
+	
+	// 高级配置
+	DSN             string        `mapstructure:"dsn"`              // 自定义DSN（优先级最高）
+	Options         map[string]interface{} `mapstructure:"options"`   // 额外选项
+	
+	// gRPC支持配置
+	GRPCEnabled     bool          `mapstructure:"grpc_enabled"`     // 是否启用gRPC支持
+	GRPCPoolSize    int           `mapstructure:"grpc_pool_size"`   // gRPC连接池大小
 }
 
 // Redis 配置
@@ -75,6 +96,43 @@ type Logging struct {
 	// 分级别日志文件配置
 	SeparateFiles bool   `mapstructure:"separate_files"` // 是否启用分级别日志文件
 	LogDir        string `mapstructure:"log_dir"`        // 日志目录
+	// 环境自适应配置
+	AutoMode      bool   `mapstructure:"auto_mode"`      // 是否启用环境自适应模式
+	ForceConsole  *bool  `mapstructure:"force_console"`  // 强制使用控制台输出（可选配置）
+	ForceFile     *bool  `mapstructure:"force_file"`     // 强制使用文件输出（可选配置）
+	// GORM日志配置
+	Gorm          GormLogging `mapstructure:"gorm"`
+	// 扩展钩子配置
+	Hooks         LoggingHooks `mapstructure:"hooks"`
+}
+
+// GormLogging GORM日志配置
+type GormLogging struct {
+	Enabled       bool   `mapstructure:"enabled"`        // 是否启用GORM日志
+	Level         string `mapstructure:"level"`          // GORM日志级别 (silent, error, warn, info)
+	SlowThreshold string `mapstructure:"slow_threshold"` // 慢查询阈值
+	SQLFile       string `mapstructure:"sql_file"`       // SQL日志文件路径
+	ErrorFile     string `mapstructure:"error_file"`     // GORM错误日志文件路径
+	AutoMode      bool   `mapstructure:"auto_mode"`      // 是否启用环境自适应模式
+	ForceConsole  *bool  `mapstructure:"force_console"`  // 强制使用控制台输出
+	ForceFile     *bool  `mapstructure:"force_file"`     // 强制使用文件输出
+}
+
+// LoggingHooks 日志钩子配置
+type LoggingHooks struct {
+	Tracing LoggingHook `mapstructure:"tracing"` // 链路追踪钩子
+	GRPC    LoggingHook `mapstructure:"grpc"`    // gRPC日志钩子
+	Custom  LoggingHook `mapstructure:"custom"`  // 自定义钩子
+}
+
+// LoggingHook 单个钩子配置
+type LoggingHook struct {
+	Enabled   bool   `mapstructure:"enabled"`    // 是否启用
+	Level     string `mapstructure:"level"`     // 日志级别
+	Format    string `mapstructure:"format"`    // 日志格式
+	Output    string `mapstructure:"output"`    // 输出方式
+	FilePath  string `mapstructure:"file_path"` // 文件路径
+	AutoMode  bool   `mapstructure:"auto_mode"` // 环境自适应
 }
 
 // JWT 配置
@@ -153,8 +211,85 @@ func Load(configPath string) (*Config, error) {
 
 // GetDSN 获取数据库连接字符串
 func (d *Database) GetDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		d.Username, d.Password, d.Host, d.Port, d.Database)
+	// 如果设置了自定义DSN，直接返回
+	if d.DSN != "" {
+		return d.DSN
+	}
+	
+	switch strings.ToLower(d.Driver) {
+	case "mysql":
+		return d.getMySQLDSN()
+	case "postgres", "postgresql":
+		return d.getPostgresDSN()
+	case "sqlite", "sqlite3":
+		return d.getSQLiteDSN()
+	case "sqlserver", "mssql":
+		return d.getSQLServerDSN()
+	case "clickhouse":
+		return d.getClickHouseDSN()
+	default:
+		// 默认使用MySQL格式
+		return d.getMySQLDSN()
+	}
+}
+
+// getMySQLDSN 获取MySQL DSN
+func (d *Database) getMySQLDSN() string {
+	charset := d.Charset
+	if charset == "" {
+		charset = "utf8mb4"
+	}
+	timezone := d.Timezone
+	if timezone == "" {
+		timezone = "Local"
+	}
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=%s",
+		d.Username, d.Password, d.Host, d.Port, d.Database, charset, timezone)
+}
+
+// getPostgresDSN 获取PostgreSQL DSN
+func (d *Database) getPostgresDSN() string {
+	sslMode := d.SSLMode
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+	timezone := d.Timezone
+	if timezone == "" {
+		timezone = "UTC"
+	}
+	
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
+		d.Host, d.Port, d.Username, d.Password, d.Database, sslMode, timezone)
+	
+	if d.Schema != "" {
+		dsn += fmt.Sprintf(" search_path=%s", d.Schema)
+	}
+	
+	return dsn
+}
+
+// getSQLiteDSN 获取SQLite DSN
+func (d *Database) getSQLiteDSN() string {
+	filePath := d.FilePath
+	if filePath == "" {
+		filePath = d.Database
+	}
+	if filePath == "" {
+		filePath = "./data.db"
+	}
+	return filePath
+}
+
+// getSQLServerDSN 获取SQL Server DSN
+func (d *Database) getSQLServerDSN() string {
+	return fmt.Sprintf("server=%s;port=%d;user id=%s;password=%s;database=%s",
+		d.Host, d.Port, d.Username, d.Password, d.Database)
+}
+
+// getClickHouseDSN 获取ClickHouse DSN
+func (d *Database) getClickHouseDSN() string {
+	return fmt.Sprintf("tcp://%s:%d?username=%s&password=%s&database=%s",
+		d.Host, d.Port, d.Username, d.Password, d.Database)
 }
 
 // GetRedisAddr 获取Redis地址

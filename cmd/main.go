@@ -17,6 +17,8 @@ import (
 	klogger "github.com/cuiyuanxin/kunpeng/internal/logger"
 	"github.com/cuiyuanxin/kunpeng/internal/redis"
 	"github.com/cuiyuanxin/kunpeng/internal/router"
+	"github.com/cuiyuanxin/kunpeng/internal/wire"
+	"github.com/go-playground/validator/v10"
 )
 
 // @title Kunpeng API
@@ -55,13 +57,13 @@ func main() {
 		panic(fmt.Sprintf("Failed to init config from %s: %v", *configPath, err))
 	}
 
-	// 初始化日志
-	if err := klogger.Init(&cfg.Logging); err != nil {
+	// 初始化日志（支持环境自适应）
+	if err := klogger.InitWithEnvironment(&cfg.Logging, cfg.App.Environment); err != nil {
 		panic(fmt.Sprintf("Failed to init logger: %v", err))
 	}
 	defer klogger.Sync()
 
-	klogger.Info("Starting Kunpeng application...",
+	klogger.Info("Starting Kunpeng application with Dependency Injection...",
 		zap.String("version", cfg.App.Version),
 		zap.String("environment", cfg.App.Environment),
 		zap.String("config_path", *configPath),
@@ -85,8 +87,16 @@ func main() {
 	}
 	defer redis.Close()
 
-	// 创建路由
-	r := router.NewRouter(cfg)
+	// 使用Wire初始化应用程序
+	app := wire.InitializeApp(cfg, database.GetDB())
+
+	klogger.Info("Application initialized with Wire dependency injection")
+
+	// 创建路由管理器
+	// 创建validator实例
+	validator := validator.New()
+	
+	r := router.NewRouter(app.Config, app.Engine, app.RouteRegistry, app.UserController, app.JWTManager, app.DB, validator)
 	r.Setup()
 
 	// 启动配置文件监控
@@ -99,8 +109,8 @@ func main() {
 				zap.String("environment", newCfg.App.Environment),
 			)
 
-			// 更新日志配置
-			if err := klogger.Init(&newCfg.Logging); err != nil {
+			// 更新日志配置（支持环境自适应）
+			if err := klogger.InitWithEnvironment(&newCfg.Logging, newCfg.App.Environment); err != nil {
 				klogger.Error("Failed to reinit logger with new config", zap.Error(err))
 			} else {
 				klogger.Info("Logger configuration updated successfully")
@@ -117,11 +127,9 @@ func main() {
 		IdleTimeout:  cfg.Server.IdleTimeout,
 	}
 
-
-
 	// 启动服务器
 	go func() {
-		klogger.Info("Server starting", zap.String("addr", srv.Addr))
+		klogger.Info("Server starting with DI container", zap.String("addr", srv.Addr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			klogger.Fatal("Failed to start server", zap.Error(err))
 		}

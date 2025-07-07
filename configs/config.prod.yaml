@@ -1,0 +1,187 @@
+# =============================================================================
+# Kunpeng Server 生产环境配置文件
+# 针对生产环境优化的配置，注重性能、安全性和稳定性
+# =============================================================================
+
+# 应用基础配置
+app:
+  name: "kunpeng-server"              # 应用名称，用于日志标识和服务发现
+  version: "1.0.0"                    # 应用版本号，用于版本管理和API版本控制
+  environment: "production"           # 运行环境：生产环境
+  debug: false                        # 调试模式：生产环境关闭调试信息，提高性能和安全性
+
+# HTTP服务器配置
+server:
+  host: "0.0.0.0"                    # 服务器监听地址：生产环境监听所有接口
+  port: 8080                          # 服务器监听端口号
+  read_timeout: 30s                   # 读取请求超时时间：防止慢客户端攻击
+  write_timeout: 30s                  # 写入响应超时时间：防止慢客户端攻击
+  idle_timeout: 60s                   # 空闲连接超时时间：Keep-Alive连接管理
+
+# 主数据库配置（生产环境）
+database:
+  # 基础连接配置
+  driver: "mysql"                     # 数据库驱动：生产环境使用MySQL
+  host: "mysql"                       # 数据库服务器地址：生产环境数据库服务器
+  port: 3306                          # 数据库服务器端口
+  username: "root"                    # 数据库用户名：生产环境应使用专用用户
+  password: "${DB_PASSWORD}"          # 数据库密码：生产环境使用环境变量
+  database: "kunpeng"                 # 数据库名称：生产环境数据库
+  charset: "utf8mb4"                  # 字符集：支持完整的UTF-8字符集
+  timezone: "UTC"                     # 时区设置：生产环境建议使用UTC时区
+  
+  # 连接池配置（生产环境优化）
+  max_open_conns: 200                 # 最大打开连接数：生产环境较大值，支持高并发
+  max_idle_conns: 20                  # 最大空闲连接数：保持足够的空闲连接
+  conn_max_lifetime: 3600s            # 连接最大生命周期：定期刷新连接
+  conn_max_idle_time: 1800s           # 连接最大空闲时间：释放长时间空闲连接
+  
+  # gRPC支持配置
+  grpc_enabled: true                  # 是否启用gRPC数据库服务：生产环境启用
+  grpc_pool_size: 10                  # gRPC连接池大小：生产环境较大值
+
+# 多数据库配置（生产环境）
+# 生产环境可能需要读写分离或分库分表
+databases:
+  # 主数据库（写库）
+  master_db:
+    driver: "mysql"                   # 数据库类型
+    host: "mysql-master"              # 主数据库地址
+    port: 3306                        # 端口号
+    username: "app_user"              # 应用专用用户
+    password: "${MASTER_DB_PASSWORD}" # 主库密码：使用环境变量
+    database: "kunpeng_master"        # 主数据库名
+    charset: "utf8mb4"                # 字符集
+    timezone: "UTC"                   # 时区
+    max_open_conns: 100               # 最大连接数
+    max_idle_conns: 10                # 最大空闲连接数
+    conn_max_lifetime: 3600s          # 连接生命周期
+    grpc_enabled: true                # 启用gRPC支持
+    grpc_pool_size: 5                 # gRPC连接池大小
+  
+  # 从数据库（读库）
+  slave_db:
+    driver: "mysql"                   # 数据库类型
+    host: "mysql-slave"               # 从数据库地址
+    port: 3306                        # 端口号
+    username: "readonly_user"         # 只读用户
+    password: "${SLAVE_DB_PASSWORD}"  # 从库密码：使用环境变量
+    database: "kunpeng_slave"         # 从数据库名
+    charset: "utf8mb4"                # 字符集
+    timezone: "UTC"                   # 时区
+    max_open_conns: 150               # 最大连接数：读库可以更多连接
+    max_idle_conns: 15                # 最大空闲连接数
+    conn_max_lifetime: 3600s          # 连接生命周期
+    grpc_enabled: true                # 启用gRPC支持
+    grpc_pool_size: 8                 # gRPC连接池大小
+  
+  # 分析数据库（PostgreSQL）
+  analytics_db:
+    driver: "postgres"                # PostgreSQL驱动
+    host: "postgres-analytics"        # 分析数据库地址
+    port: 5432                        # PostgreSQL默认端口
+    username: "analytics_user"        # 分析专用用户
+    password: "${ANALYTICS_DB_PASSWORD}" # 分析库密码：使用环境变量
+    database: "kunpeng_analytics"     # 分析数据库名
+    schema: "public"                  # 模式名
+    ssl_mode: "require"               # SSL模式：生产环境要求SSL
+    timezone: "UTC"                   # 时区设置
+    max_open_conns: 50                # 最大连接数
+    max_idle_conns: 5                 # 最大空闲连接数
+    conn_max_lifetime: 3600s          # 连接生命周期
+    grpc_enabled: true                # 启用gRPC支持
+    grpc_pool_size: 3                 # gRPC连接池大小
+
+# Redis缓存配置（生产环境）
+redis:
+  host: "redis"                       # Redis服务器地址：生产环境Redis服务器
+  port: 6379                          # Redis服务器端口
+  password: "${REDIS_PASSWORD}"       # Redis密码：生产环境使用环境变量
+  db: 0                               # Redis数据库编号：生产环境使用0号数据库
+  pool_size: 20                       # 连接池大小：生产环境较大值
+  min_idle_conns: 10                  # 最小空闲连接数：保持足够的连接
+  dial_timeout: 5s                    # 连接超时时间
+  read_timeout: 3s                    # 读取超时时间
+  write_timeout: 3s                   # 写入超时时间
+  pool_timeout: 4s                    # 连接池获取连接超时时间
+  idle_timeout: 300s                  # 空闲连接超时时间
+
+# 日志系统配置（生产环境）
+logging:
+  # 基础日志配置
+  level: "info"                       # 日志级别：生产环境使用info级别，避免过多日志
+  format: "json"                      # 日志格式：生产环境使用JSON格式便于日志收集
+  output: "file"                      # 输出目标：生产环境输出到文件
+  file_path: "logs/app.log"           # 日志文件路径
+  
+  # 日志轮转配置
+  max_size: 100                       # 单个日志文件最大大小（MB）
+  max_backups: 30                     # 保留的旧日志文件数量：生产环境保留更多
+  max_age: 90                         # 日志文件保留天数：生产环境保留更长时间
+  compress: true                      # 是否压缩旧日志文件：生产环境压缩节省空间
+  
+  # 高级日志配置
+  separate_files: true                # 是否按日志级别分别存储：生产环境分离便于分析
+  log_dir: "logs"                     # 日志目录
+  auto_mode: true                     # 环境自适应模式：根据environment自动调整
+  force_console: false                # 强制控制台输出：生产环境不输出到控制台
+  force_file: true                    # 强制文件输出：生产环境强制文件输出
+  
+  # GORM数据库日志配置（生产环境）
+  gorm:
+    enabled: true                     # 是否启用GORM日志记录：生产环境启用便于监控
+    level: "warn"                     # GORM日志级别：生产环境只记录警告和错误
+    slow_threshold: "500ms"           # 慢查询阈值：生产环境更宽松的阈值
+    colorful: false                   # 是否启用彩色输出：生产环境不需要彩色
+    ignore_record_not_found_error: true # 是否忽略记录未找到错误
+    sql_file: "logs/sql.log"          # SQL日志文件路径
+    error_file: "logs/gorm_error.log" # GORM错误日志文件路径
+    auto_mode: true                   # 环境自适应模式
+    force_console: false              # 强制控制台输出：生产环境不输出到控制台
+    force_file: true                  # 强制文件输出：生产环境输出到文件
+  
+  # 日志钩子扩展配置（生产环境）
+  hooks:
+    # 链路追踪钩子
+    trace:
+      enabled: true                   # 是否启用链路追踪日志：生产环境启用便于监控
+      service_name: "kunpeng-server"  # 服务名称：生产环境标识
+    
+    # 自定义钩子
+    custom:
+      enabled: false                 # 是否启用自定义日志钩子：生产环境暂不启用
+    
+    # gRPC日志钩子
+    grpc:
+      enabled: true                   # 是否启用gRPC日志记录：生产环境启用
+      server_addr: "grpc-server:50051" # gRPC服务器地址：生产环境gRPC服务
+
+# JWT认证配置（生产环境）
+jwt:
+  secret: "${JWT_SECRET}"             # JWT签名密钥：生产环境使用环境变量，必须是强密码
+  expires_in: 2h                      # 访问令牌过期时间：生产环境较短，提高安全性
+  refresh_expires_in: 72h             # 刷新令牌过期时间：生产环境3天
+  issuer: "kunpeng-server"            # JWT签发者标识：生产环境标识
+
+# =============================================================================
+# 生产环境配置说明：
+# 1. 关闭debug模式，提高性能和安全性
+# 2. 使用JSON格式日志，便于日志收集和分析
+# 3. 数据库连接池参数较大，支持高并发访问
+# 4. 使用环境变量管理敏感信息（密码、密钥等）
+# 5. 启用SSL和安全配置
+# 6. 日志分级存储，便于问题排查
+# 7. JWT令牌过期时间较短，提高安全性
+# 8. 支持读写分离和多数据库架构
+# 9. 启用日志压缩和长期保留
+# 10. 配置监控和链路追踪
+# =============================================================================
+# 
+# 环境变量说明：
+# DB_PASSWORD: 主数据库密码
+# MASTER_DB_PASSWORD: 主库密码
+# SLAVE_DB_PASSWORD: 从库密码
+# ANALYTICS_DB_PASSWORD: 分析库密码
+# REDIS_PASSWORD: Redis密码
+# JWT_SECRET: JWT签名密钥（建议64位随机字符串）
+# =============================================================================

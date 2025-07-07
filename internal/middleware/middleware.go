@@ -1,97 +1,31 @@
+// Package middleware 包含项目特定的中间件
+// 通用中间件已迁移到 pkg/middleware
 package middleware
 
 import (
-	"context"
-	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
+	gorm "gorm.io/gorm"
 
-	"github.com/cuiyuanxin/kunpeng/internal/auth"
-	klogger "github.com/cuiyuanxin/kunpeng/internal/logger"
-	"github.com/cuiyuanxin/kunpeng/internal/response"
+	"github.com/cuiyuanxin/kunpeng/pkg/auth"
+	"github.com/cuiyuanxin/kunpeng/pkg/response"
+	"github.com/cuiyuanxin/kunpeng/pkg/middleware"
 )
 
-// CORS 跨域中间件
-func CORS() gin.HandlerFunc {
-	return gin.HandlerFunc(func(c *gin.Context) {
-		origin := c.Request.Header.Get("Origin")
-		c.Header("Access-Control-Allow-Origin", origin)
-		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "authorization, origin, content-type, accept")
-		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Max-Age", "86400")
+// 重新导出通用中间件
+var (
+	CORS        = middleware.CORS
+	Logger      = middleware.Logger
+	Recovery    = middleware.Recovery
+	RequestID   = middleware.RequestID
+	Timeout     = middleware.Timeout
+	RateLimiter = middleware.RateLimiter
+)
 
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-
-		c.Next()
-	})
-}
-
-// Logger 日志中间件
-func Logger() gin.HandlerFunc {
-	return gin.HandlerFunc(func(c *gin.Context) {
-		start := time.Now()
-		path := c.Request.URL.Path
-		raw := c.Request.URL.RawQuery
-
-		// 处理请求
-		c.Next()
-
-		// 记录日志
-		latency := time.Since(start)
-		clientIP := c.ClientIP()
-		method := c.Request.Method
-		statusCode := c.Writer.Status()
-
-		if raw != "" {
-			path = path + "?" + raw
-		}
-
-		klogger.Info("HTTP Request",
-			zap.String("method", method),
-			zap.String("path", path),
-			zap.String("client_ip", clientIP),
-			zap.Int("status_code", statusCode),
-			zap.Duration("latency", latency),
-			zap.String("user_agent", c.Request.UserAgent()),
-		)
-	})
-}
-
-// Recovery 恢复中间件
-func Recovery() gin.HandlerFunc {
-	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
-		klogger.Error("Panic recovered",
-			zap.Any("error", recovered),
-			zap.String("path", c.Request.URL.Path),
-			zap.String("method", c.Request.Method),
-		)
-
-		response.ServerError(c, "Internal server error")
-		c.Abort()
-	})
-}
-
-// RateLimiter 限流中间件（简单实现）
-func RateLimiter() gin.HandlerFunc {
-	// 这里可以集成更复杂的限流算法，如令牌桶、滑动窗口等
-	return gin.HandlerFunc(func(c *gin.Context) {
-		// 简单的IP限流示例
-		// 实际项目中建议使用Redis实现分布式限流
-		c.Next()
-	})
-}
-
-// JWTAuth JWT认证中间件
-func JWTAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
-	return gin.HandlerFunc(func(c *gin.Context) {
-		// 从请求头获取token
+// JWTAuth JWT认证中间件（项目特定）
+func JWTAuth(jwtManager *auth.JWTManager, db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			response.Unauthorized(c, "Missing authorization header")
@@ -101,16 +35,16 @@ func JWTAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
 
 		// 检查Bearer前缀
 		parts := strings.SplitN(authHeader, " ", 2)
-		if !(len(parts) == 2 && parts[0] == "Bearer") {
+		if len(parts) != 2 || parts[0] != "Bearer" {
 			response.Unauthorized(c, "Invalid authorization header format")
 			c.Abort()
 			return
 		}
 
-		// 解析token
-		claims, err := jwtManager.ParseToken(parts[1])
+		tokenString := parts[1]
+		claims, err := jwtManager.ParseToken(tokenString)
 		if err != nil {
-			response.Unauthorized(c, "Invalid token")
+			response.Unauthorized(c, "Invalid token: "+err.Error())
 			c.Abort()
 			return
 		}
@@ -121,61 +55,44 @@ func JWTAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		c.Set("role", claims.Role)
 
 		c.Next()
-	})
+	}
 }
 
-// RequireRole 角色权限中间件
-func RequireRole(roles ...string) gin.HandlerFunc {
-	return gin.HandlerFunc(func(c *gin.Context) {
-		userRole, exists := c.Get("role")
+// AdminAuth 管理员权限中间件（项目特定）
+func AdminAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("role")
 		if !exists {
-			response.Unauthorized(c, "User role not found")
+			response.Unauthorized(c, "Missing role information")
 			c.Abort()
 			return
 		}
 
-		// 检查用户角色是否在允许的角色列表中
-		roleStr := userRole.(string)
-		for _, role := range roles {
-			if roleStr == role {
-				c.Next()
-				return
-			}
+		if role != "admin" {
+			response.Forbidden(c, "Admin access required")
+			c.Abort()
+			return
 		}
 
-		response.Forbidden(c, "Insufficient permissions")
-		c.Abort()
-	})
-}
-
-// RequestID 请求ID中间件
-func RequestID() gin.HandlerFunc {
-	return gin.HandlerFunc(func(c *gin.Context) {
-		requestID := c.GetHeader("X-Request-ID")
-		if requestID == "" {
-			// 生成新的请求ID
-			requestID = generateRequestID()
-		}
-
-		c.Header("X-Request-ID", requestID)
-		c.Set("request_id", requestID)
 		c.Next()
-	})
+	}
 }
 
-// generateRequestID 生成请求ID
-func generateRequestID() string {
-	// 简单的时间戳+随机数实现
-	// 实际项目中可以使用UUID或其他更复杂的算法
-	return time.Now().Format("20060102150405") + "-" + "random"
-}
-
-// Timeout 超时中间件
-func Timeout(timeout time.Duration) gin.HandlerFunc {
+// PermissionAuth 权限验证中间件（项目特定）
+func PermissionAuth(requiredPermission string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
-		defer cancel()
-		c.Request = c.Request.WithContext(ctx)
+		userID, exists := c.Get("user_id")
+		if !exists {
+			response.Unauthorized(c, "Missing user information")
+			c.Abort()
+			return
+		}
+
+		// TODO: 实现权限检查逻辑
+		// 这里应该查询数据库检查用户是否具有所需权限
+		_ = userID
+		_ = requiredPermission
+
 		c.Next()
 	}
 }

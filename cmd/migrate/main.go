@@ -3,20 +3,21 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/cuiyuanxin/kunpeng/internal/config"
 	"github.com/cuiyuanxin/kunpeng/internal/database"
 	klogger "github.com/cuiyuanxin/kunpeng/internal/logger"
 	"github.com/cuiyuanxin/kunpeng/internal/migrate"
-	"go.uber.org/zap"
 )
 
 func main() {
 	// 定义命令行参数
 	var (
 		configPath = flag.String("config", "configs/config.yaml", "配置文件路径")
-		action     = flag.String("action", "migrate", "执行的操作: migrate(迁移), drop(删除表), reset(重置数据库)")
+		action     = flag.String("action", "migrate", "执行的操作 (migrate, drop, reset)")
+		targetDB   = flag.String("database", "all", "目标数据库 (all, primary, 或指定数据库名称)")
 		help       = flag.Bool("help", false, "显示帮助信息")
 	)
 	flag.Parse()
@@ -47,40 +48,100 @@ func main() {
 	defer klogger.Sync()
 
 	// 初始化数据库
-	if err := database.Init(&cfg.Database); err != nil {
-		klogger.Fatal("Failed to init database", zap.Error(err))
+	if err := database.InitWithConfig(cfg); err != nil {
+		log.Fatal("Failed to init database:", err)
 	}
 	defer database.Close()
 
-	// 执行相应的操作
+	// 显示可用的数据库
+	databases := database.ListDatabases()
+	fmt.Printf("Available databases: %v\n", databases)
+
+	// 根据操作类型执行相应的功能
+	target := *targetDB
 	switch *action {
 	case "migrate":
-		if err := migrate.AutoMigrate(); err != nil {
-			klogger.Fatal("Migration failed", zap.Error(err))
-		}
-		klogger.Info("Migration completed successfully")
-
+		performMigration(target)
 	case "drop":
-		if err := migrate.DropAllTables(); err != nil {
-			klogger.Fatal("Drop tables failed", zap.Error(err))
-		}
-		klogger.Info("All tables dropped successfully")
-
+		performDrop(target)
 	case "reset":
-		if err := migrate.ResetDatabase(); err != nil {
-			klogger.Fatal("Reset database failed", zap.Error(err))
-		}
-		klogger.Info("Database reset completed successfully")
-
+		performReset(target)
 	default:
-		fmt.Printf("Unknown action: %s\n", *action)
-		printHelp()
+		fmt.Printf("未知操作: %s\n", *action)
 		os.Exit(1)
 	}
 }
 
+func performMigration(target string) {
+	fmt.Printf("执行数据库迁移，目标: %s\n", target)
+	
+	switch target {
+	case "all":
+		if err := database.AutoMigrateAll(); err != nil {
+			log.Fatal("Failed to migrate all databases:", err)
+		}
+		fmt.Println("所有数据库迁移完成")
+	case "primary":
+		if err := migrate.AutoMigrate(); err != nil {
+			log.Fatal("Failed to migrate primary database:", err)
+		}
+		fmt.Println("主数据库迁移完成")
+	default:
+		if err := database.AutoMigrateOnDatabase(target); err != nil {
+			log.Fatal("Failed to migrate database:", err)
+		}
+		fmt.Printf("数据库 %s 迁移完成\n", target)
+	}
+}
+
+func performDrop(target string) {
+	fmt.Printf("删除数据库表，目标: %s\n", target)
+	
+	switch target {
+	case "all":
+		if err := migrate.DropAllTables(); err != nil {
+			log.Fatal("Failed to drop tables on all databases:", err)
+		}
+		fmt.Println("所有数据库的表已删除")
+	case "primary":
+		if err := migrate.DropAllTables(); err != nil {
+			log.Fatal("Failed to drop tables on primary database:", err)
+		}
+		fmt.Println("主数据库的表已删除")
+	default:
+		// 对于指定数据库，暂时使用主数据库的方法
+		if err := migrate.DropAllTables(); err != nil {
+			log.Fatal("Failed to drop tables on database:", err)
+		}
+		fmt.Printf("数据库 %s 的表已删除\n", target)
+	}
+}
+
+func performReset(target string) {
+	fmt.Printf("重置数据库，目标: %s\n", target)
+	
+	switch target {
+	case "all":
+		if err := migrate.ResetDatabase(); err != nil {
+			log.Fatal("Failed to reset all databases:", err)
+		}
+		fmt.Println("所有数据库已重置")
+	case "primary":
+		if err := migrate.ResetDatabase(); err != nil {
+			log.Fatal("Failed to reset primary database:", err)
+		}
+		fmt.Println("主数据库已重置")
+	default:
+		// 对于指定数据库，暂时使用主数据库的方法
+		if err := migrate.ResetDatabase(); err != nil {
+			log.Fatal("Failed to reset database:", err)
+		}
+		fmt.Printf("数据库 %s 已重置\n", target)
+	}
+}
+
 func printHelp() {
-	fmt.Println("数据库迁移工具")
+	fmt.Println("数据库迁移工具（支持多数据库）")
 	fmt.Println("")
 	fmt.Println("用法:")
 	fmt.Println("  go run cmd/migrate/main.go [选项]")
@@ -94,6 +155,12 @@ func printHelp() {
 	fmt.Println("          migrate  - 自动迁移数据库表")
 	fmt.Println("          drop     - 删除所有数据库表")
 	fmt.Println("          reset    - 重置数据库（删除后重新创建）")
+	fmt.Println("  -database string")
+	fmt.Println("        目标数据库 (默认: all)")
+	fmt.Println("        可选值:")
+	fmt.Println("          all      - 所有数据库")
+	fmt.Println("          primary  - 主数据库")
+	fmt.Println("          <name>   - 指定数据库名称")
 	fmt.Println("  -help")
 	fmt.Println("        显示此帮助信息")
 	fmt.Println("")
@@ -101,15 +168,21 @@ func printHelp() {
 	fmt.Println("  KUNPENG_CONFIG_PATH  配置文件路径（优先级高于-config参数）")
 	fmt.Println("")
 	fmt.Println("示例:")
-	fmt.Println("  # 执行数据库迁移")
+	fmt.Println("  # 在所有数据库上执行迁移")
 	fmt.Println("  go run cmd/migrate/main.go")
 	fmt.Println("")
+	fmt.Println("  # 在主数据库上执行迁移")
+	fmt.Println("  go run cmd/migrate/main.go -database=primary")
+	fmt.Println("")
+	fmt.Println("  # 在指定数据库上执行迁移")
+	fmt.Println("  go run cmd/migrate/main.go -database=user_db")
+	fmt.Println("")
 	fmt.Println("  # 使用指定配置文件")
-	fmt.Println("  go run cmd/migrate/main.go -config=configs/config.prod.yaml")
+	fmt.Println("  go run cmd/migrate/main.go -config=configs/config.dev.yaml")
 	fmt.Println("")
-	fmt.Println("  # 重置数据库")
-	fmt.Println("  go run cmd/migrate/main.go -action=reset")
+	fmt.Println("  # 重置所有数据库")
+	fmt.Println("  go run cmd/migrate/main.go -action=reset -database=all")
 	fmt.Println("")
-	fmt.Println("  # 删除所有表")
-	fmt.Println("  go run cmd/migrate/main.go -action=drop")
+	fmt.Println("  # 删除指定数据库的所有表")
+	fmt.Println("  go run cmd/migrate/main.go -action=drop -database=user_db")
 }

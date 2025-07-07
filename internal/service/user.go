@@ -25,6 +25,13 @@ func NewUserService() *UserService {
 	}
 }
 
+// NewUserServiceWithDB 使用指定数据库连接创建用户服务
+func NewUserServiceWithDB(db *gorm.DB) *UserService {
+	return &UserService{
+		db: db,
+	}
+}
+
 // Create 创建用户
 func (s *UserService) Create(req *model.UserCreateRequest) (*model.User, error) {
 	// 检查用户名是否已存在

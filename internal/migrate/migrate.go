@@ -11,7 +11,18 @@ import (
 
 // AllModels 所有需要迁移的模型
 var AllModels = []interface{}{
+	// 前台用户模型
 	&model.User{},
+	
+	// 后台管理员模型
+	&model.AdminUser{},
+	&model.AdminRole{},
+	&model.AdminPermission{},
+	&model.AdminDepartment{},
+	&model.AdminLoginLog{},
+	&model.AdminOperationLog{},
+	&model.AdminConfig{},
+	
 	// 在这里添加新的模型
 }
 

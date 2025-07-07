@@ -54,6 +54,9 @@ type UserChangePasswordRequest struct {
 	NewPassword string `json:"new_password" validate:"required,min=6"`
 }
 
+// 为了兼容性，添加简化的别名
+type ChangePasswordRequest = UserChangePasswordRequest
+
 // UserResponse 用户响应
 type UserResponse struct {
 	ID        uint       `json:"id"`
