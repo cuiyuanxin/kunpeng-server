@@ -17,7 +17,7 @@ import (
 	klogger "github.com/cuiyuanxin/kunpeng/internal/logger"
 	"github.com/cuiyuanxin/kunpeng/internal/redis"
 	"github.com/cuiyuanxin/kunpeng/internal/router"
-	"github.com/cuiyuanxin/kunpeng/internal/wire"
+	"github.com/cuiyuanxin/kunpeng/cmd/wire"
 	"github.com/go-playground/validator/v10"
 )
 

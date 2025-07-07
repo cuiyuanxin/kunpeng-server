@@ -112,7 +112,7 @@ fi
 
 # 执行迁移
 echo "开始执行数据库迁移..."
-go run cmd/migrate/main.go -config="$CONFIG_PATH" -action="$ACTION"
+go run cmd/migrate/main.go -config "$CONFIG_PATH" -action "$ACTION"
 
 if [[ $? -eq 0 ]]; then
     echo ""

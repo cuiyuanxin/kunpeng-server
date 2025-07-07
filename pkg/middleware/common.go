@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -59,6 +60,63 @@ func Logger(logger *zap.Logger) gin.HandlerFunc {
 	})
 }
 
+// CustomLogger 自定义日志中间件（生产环境使用）
+// 参考《Go程序编程之旅》的实现方式
+func CustomLogger(logger *zap.Logger) gin.HandlerFunc {
+	return gin.HandlerFunc(func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		raw := c.Request.URL.RawQuery
+		requestID := c.GetString("request_id")
+		if requestID == "" {
+			requestID = generateRequestID()
+			c.Set("request_id", requestID)
+		}
+
+		// 记录请求开始
+		logger.Info("Request started",
+			zap.String("request_id", requestID),
+			zap.String("method", c.Request.Method),
+			zap.String("path", path),
+			zap.String("client_ip", c.ClientIP()),
+			zap.String("user_agent", c.Request.UserAgent()),
+			zap.String("referer", c.Request.Referer()),
+		)
+
+		// 处理请求
+		c.Next()
+
+		// 记录请求结束
+		latency := time.Since(start)
+		statusCode := c.Writer.Status()
+		bodySize := c.Writer.Size()
+
+		if raw != "" {
+			path = path + "?" + raw
+		}
+
+		// 根据状态码选择日志级别
+		logFields := []zap.Field{
+			zap.String("request_id", requestID),
+			zap.String("method", c.Request.Method),
+			zap.String("path", path),
+			zap.String("client_ip", c.ClientIP()),
+			zap.Int("status_code", statusCode),
+			zap.Duration("latency", latency),
+			zap.Int("body_size", bodySize),
+			zap.String("user_agent", c.Request.UserAgent()),
+		}
+
+		if statusCode >= 500 {
+			logger.Error("Request completed with server error", logFields...)
+		} else if statusCode >= 400 {
+			logger.Warn("Request completed with client error", logFields...)
+		} else {
+			logger.Info("Request completed successfully", logFields...)
+		}
+	})
+}
+
 // Recovery 恢复中间件
 func Recovery(logger *zap.Logger, responseFunc func(*gin.Context, string)) gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
@@ -68,6 +126,38 @@ func Recovery(logger *zap.Logger, responseFunc func(*gin.Context, string)) gin.H
 			zap.String("method", c.Request.Method),
 		)
 
+		responseFunc(c, "Internal server error")
+		c.Abort()
+	})
+}
+
+// CustomRecovery 自定义恢复中间件（生产环境使用）
+// 参考《Go程序编程之旅》的实现方式
+func CustomRecovery(logger *zap.Logger, responseFunc func(*gin.Context, string)) gin.HandlerFunc {
+	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
+		requestID := c.GetString("request_id")
+		if requestID == "" {
+			requestID = generateRequestID()
+		}
+
+		// 获取堆栈信息
+		stack := make([]byte, 4096)
+		length := runtime.Stack(stack, false)
+		stackTrace := string(stack[:length])
+
+		// 记录详细的panic信息
+		logger.Error("Panic recovered in custom recovery",
+			zap.String("request_id", requestID),
+			zap.Any("panic", recovered),
+			zap.String("path", c.Request.URL.Path),
+			zap.String("method", c.Request.Method),
+			zap.String("client_ip", c.ClientIP()),
+			zap.String("user_agent", c.Request.UserAgent()),
+			zap.String("stack_trace", stackTrace),
+			zap.Time("timestamp", time.Now()),
+		)
+
+		// 发送错误响应
 		responseFunc(c, "Internal server error")
 		c.Abort()
 	})

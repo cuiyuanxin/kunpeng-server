@@ -481,10 +481,10 @@ go run examples/multi_database_example.go
 
 ```bash
 # 使用开发环境配置
-go run cmd/main.go -config=configs/config.dev.yaml
+go run cmd/main.go -config configs/config.dev.yaml
 
 # 使用生产环境配置
-go run cmd/main.go -config=configs/config.prod.yaml
+go run cmd/main.go -config configs/config.prod.yaml
 ```
 
 ## ⚠️ 注意事项

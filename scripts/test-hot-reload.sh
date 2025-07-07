@@ -23,7 +23,7 @@ echo "   应用将在后台运行，PID将保存到 /tmp/kunpeng-test.pid"
 echo
 
 # 启动应用
-./build/kunpeng -config=configs/config.test.yaml > /tmp/kunpeng-test.log 2>&1 &
+./build/kunpeng -config configs/config.test.yaml > /tmp/kunpeng-test.log 2>&1 &
 APP_PID=$!
 echo $APP_PID > /tmp/kunpeng-test.pid
 

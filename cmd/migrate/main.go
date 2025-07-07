@@ -178,7 +178,7 @@ func printHelp() {
 	fmt.Println("  go run cmd/migrate/main.go -database=user_db")
 	fmt.Println("")
 	fmt.Println("  # 使用指定配置文件")
-	fmt.Println("  go run cmd/migrate/main.go -config=configs/config.dev.yaml")
+	fmt.Println("  go run cmd/migrate/main.go -config configs/config.dev.yaml")
 	fmt.Println("")
 	fmt.Println("  # 重置所有数据库")
 	fmt.Println("  go run cmd/migrate/main.go -action=reset -database=all")

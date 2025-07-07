@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/cuiyuanxin/kunpeng/pkg/errors"
 )
 
 // Response 统一响应结构
@@ -147,4 +148,78 @@ func Custom(c *gin.Context, httpCode, code int, message string, data interface{}
 		Message: message,
 		Data:    data,
 	})
+}
+
+// HandleBusinessError 处理业务错误的统一响应
+func HandleBusinessError(c *gin.Context, err error) {
+	if err == nil {
+		return
+	}
+
+	// 如果是业务错误，使用预设的错误码和描述
+	if bizErr, ok := err.(*errors.BusinessError); ok {
+		responseData := Response{
+			Code:    int(bizErr.Code),
+			Message: bizErr.Message,
+		}
+		
+		// 如果有详细信息，添加到响应中
+		if bizErr.Details != "" {
+			responseData.Data = gin.H{"details": bizErr.Details}
+		}
+		
+		c.JSON(bizErr.HTTPStatus, responseData)
+		return
+	}
+
+	// 其他错误统一处理为内部服务器错误
+	ServerError(c, "服务器内部错误")
+}
+
+// SuccessOrError 根据错误情况返回成功或错误响应
+func SuccessOrError(c *gin.Context, data interface{}, err error) {
+	if err != nil {
+		HandleBusinessError(c, err)
+		return
+	}
+	Success(c, data)
+}
+
+// SuccessPageOrError 根据错误情况返回分页成功或错误响应
+func SuccessPageOrError(c *gin.Context, data interface{}, total int64, page, size int, err error) {
+	if err != nil {
+		HandleBusinessError(c, err)
+		return
+	}
+	SuccessPage(c, data, total, page, size)
+}
+
+// BusinessError 直接返回业务错误
+func BusinessError(c *gin.Context, bizErr *errors.BusinessError) {
+	HandleBusinessError(c, bizErr)
+}
+
+// BusinessErrorWithDetails 返回带详细信息的业务错误
+func BusinessErrorWithDetails(c *gin.Context, bizErr *errors.BusinessError, details string) {
+	HandleBusinessError(c, bizErr.WithDetails(details))
+}
+
+// ValidationError 返回验证错误
+func ValidationError(c *gin.Context, details string) {
+	HandleBusinessError(c, errors.ErrValidationFailed.WithDetails(details))
+}
+
+// AuthError 返回认证错误
+func AuthError(c *gin.Context, details string) {
+	HandleBusinessError(c, errors.ErrUnauthorized.WithDetails(details))
+}
+
+// PermissionError 返回权限错误
+func PermissionError(c *gin.Context, details string) {
+	HandleBusinessError(c, errors.ErrPermissionDenied.WithDetails(details))
+}
+
+// DatabaseError 返回数据库错误
+func DatabaseError(c *gin.Context, details string) {
+	HandleBusinessError(c, errors.ErrDatabaseError.WithDetails(details))
 }

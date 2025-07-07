@@ -52,20 +52,3 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		c.Next()
 	})
 }
-
-// SetError 设置错误到Gin上下文
-func SetError(c *gin.Context, err error) {
-	c.Error(err)
-}
-
-// AbortWithError 中断请求并返回错误
-func AbortWithError(c *gin.Context, err error) {
-	HandleError(c, err)
-	c.Abort()
-}
-
-// AbortWithBusinessError 中断请求并返回业务错误
-func AbortWithBusinessError(c *gin.Context, bizErr *BusinessError) {
-	HandleError(c, bizErr)
-	c.Abort()
-}

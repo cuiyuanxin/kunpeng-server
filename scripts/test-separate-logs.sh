@@ -17,7 +17,7 @@ make build
 
 # 启动应用（后台运行）
 echo "启动应用（使用分级别日志配置）..."
-./build/kunpeng -config="configs/config.separate-logs.yaml" &
+./build/kunpeng -config "configs/config.separate-logs.yaml" &
 APP_PID=$!
 
 echo "应用已启动，PID: $APP_PID"

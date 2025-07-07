@@ -1,11 +1,11 @@
 package controller
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/cuiyuanxin/kunpeng/internal/model"
 	"github.com/cuiyuanxin/kunpeng/internal/service"
 	"github.com/cuiyuanxin/kunpeng/pkg/auth"
 	"github.com/cuiyuanxin/kunpeng/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 // UserController 用户控制器
@@ -22,34 +22,6 @@ func NewUserController(userService *service.UserService, jwtManager *auth.JWTMan
 		userService:    userService,
 		jwtManager:     jwtManager,
 	}
-}
-
-// Register 用户注册
-// @Summary 用户注册
-// @Description 创建新用户账户
-// @Tags 用户管理
-// @Accept json
-// @Produce json
-// @Param request body model.UserCreateRequest true "用户注册信息"
-// @Success 200 {object} response.Response{data=model.UserResponse}
-// @Failure 400 {object} response.Response
-// @Failure 500 {object} response.Response
-// @Router /api/v1/auth/register [post]
-func (uc *UserController) Register(c *gin.Context) {
-	var req model.UserCreateRequest
-	if err := uc.BindAndValidate(c, &req); err != nil {
-		uc.HandleValidationError(c, err)
-		return
-	}
-
-	// 创建用户
-	user, err := uc.userService.Create(&req)
-	if err != nil {
-		response.BadRequest(c, err.Error())
-		return
-	}
-
-	response.SuccessWithMessage(c, "User registered successfully", user.ToResponse())
 }
 
 // Login 用户登录

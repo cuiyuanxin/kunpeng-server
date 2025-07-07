@@ -113,7 +113,7 @@ air:
 # 使用自定义配置运行
 run-config:
 	@echo "Running with custom config..."
-	@./$(BUILD_DIR)/$(APP_NAME) -config=$(CONFIG_PATH)
+	@./$(BUILD_DIR)/$(APP_NAME) -config $(CONFIG_PATH)
 
 # 使用环境变量配置运行
 run-env:
@@ -125,7 +125,7 @@ test-reload:
 	@echo "Testing config hot reload..."
 	@echo "Starting application with test config..."
 	@echo "You can modify configs/config.test.yaml in another terminal to test hot reload"
-	./build/kunpeng -config=configs/config.test.yaml
+	./build/kunpeng -config configs/config.test.yaml
 
 # 测试分级别日志功能
 test-separate-logs:

@@ -10,23 +10,23 @@ import (
 	"gorm.io/gorm"
 )
 
-// User 用户模型示例
-type User struct {
+// ExampleUser 用户模型示例
+type ExampleUser struct {
 	ID    uint   `gorm:"primaryKey"`
 	Name  string `gorm:"size:100;not null"`
 	Email string `gorm:"size:100;uniqueIndex"`
 }
 
-// Order 订单模型示例
-type Order struct {
+// ExampleOrder 订单模型示例
+type ExampleOrder struct {
 	ID     uint   `gorm:"primaryKey"`
 	UserID uint   `gorm:"not null"`
 	Amount float64 `gorm:"not null"`
 	Status string `gorm:"size:50;default:'pending'"`
 }
 
-// Analytics 分析数据模型示例
-type Analytics struct {
+// ExampleAnalytics 分析数据模型示例
+type ExampleAnalytics struct {
 	ID        uint   `gorm:"primaryKey"`
 	EventName string `gorm:"size:100;not null"`
 	EventData string `gorm:"type:text"`
@@ -71,14 +71,14 @@ func main() {
 	fmt.Println("\n=== 数据库迁移示例 ===")
 	
 	// 在用户数据库上迁移用户和订单表
-	if err := database.AutoMigrateOnDatabase("user_db", &User{}, &Order{}); err != nil {
+	if err := database.AutoMigrateOnDatabase("user_db", &ExampleUser{}, &ExampleOrder{}); err != nil {
 		log.Printf("Failed to migrate user_db: %v", err)
 	} else {
 		fmt.Println("User database migration completed")
 	}
 
 	// 在分析数据库上迁移分析表
-	if err := database.AutoMigrateOnDatabase("analytics_db", &Analytics{}); err != nil {
+	if err := database.AutoMigrateOnDatabase("analytics_db", &ExampleAnalytics{}); err != nil {
 		log.Printf("Failed to migrate analytics_db: %v", err)
 	} else {
 		fmt.Println("Analytics database migration completed")
@@ -90,7 +90,7 @@ func main() {
 	// 在用户数据库上创建用户
 	userDB := database.GetDatabase("user_db")
 	if userDB != nil {
-		user := &User{
+		user := &ExampleUser{
 			Name:  "张三",
 			Email: "zhangsan@example.com",
 		}
@@ -100,7 +100,7 @@ func main() {
 			fmt.Printf("User created with ID: %d\n", user.ID)
 			
 			// 创建订单
-			order := &Order{
+			order := &ExampleOrder{
 				UserID: user.ID,
 				Amount: 99.99,
 				Status: "completed",
@@ -116,7 +116,7 @@ func main() {
 	// 在分析数据库上记录事件
 	analyticsDB := database.GetDatabase("analytics_db")
 	if analyticsDB != nil {
-		analytics := &Analytics{
+		analytics := &ExampleAnalytics{
 			EventName: "user_registration",
 			EventData: `{"source": "web", "campaign": "summer2024"}`,
 			Timestamp: 1234567890,
@@ -134,7 +134,7 @@ func main() {
 	// 在用户数据库上执行事务
 	err = database.TransactionOnDatabase("user_db", func(tx *gorm.DB) error {
 		// 创建用户
-		user := &User{
+		user := &ExampleUser{
 			Name:  "李四",
 			Email: "lisi@example.com",
 		}
@@ -143,7 +143,7 @@ func main() {
 		}
 
 		// 创建订单
-		order := &Order{
+		order := &ExampleOrder{
 			UserID: user.ID,
 			Amount: 199.99,
 			Status: "pending",
@@ -174,7 +174,7 @@ func main() {
 		
 		// 使用 gRPC 数据库连接执行查询
 		var userCount int64
-		if err := grpcDB.Model(&User{}).Count(&userCount).Error; err != nil {
+		if err := grpcDB.Model(&ExampleUser{}).Count(&userCount).Error; err != nil {
 			log.Printf("Failed to count users: %v", err)
 		} else {
 			fmt.Printf("Total users in user_db: %d\n", userCount)

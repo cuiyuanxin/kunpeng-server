@@ -122,7 +122,7 @@ cp configs/config.example.yaml configs/config.yaml
 
 1. **命令行参数**（优先级最低）：
    ```bash
-   ./build/kunpeng -config=/path/to/your/config.yaml
+   ./build/kunpeng -config /path/to/your/config.yaml
    ```
 
 2. **环境变量**（优先级最高）：
@@ -156,7 +156,7 @@ cp configs/config.example.yaml configs/config.yaml
 **测试热重载功能**:
 ```bash
 # 启动应用
-./build/kunpeng -config="configs/config.test.yaml"
+./build/kunpeng -config "configs/config.test.yaml"
 
 # 在另一个终端修改配置文件
 sed -i '' 's/level: "debug"/level: "info"/' configs/config.test.yaml
@@ -196,7 +196,7 @@ logging:
 **测试分级别日志**:
 ```bash
 # 使用分级别日志配置启动
-./build/kunpeng -config="configs/config.separate-logs.yaml"
+./build/kunpeng -config "configs/config.separate-logs.yaml"
 
 # 或使用测试脚本
 make test-separate-logs
@@ -258,7 +258,7 @@ make migrate-drop
 go run cmd/migrate/main.go
 
 # 指定配置和操作
-go run cmd/migrate/main.go -config=configs/config.yaml -action=migrate
+go run cmd/migrate/main.go -config configs/config.yaml -action migrate
 
 # 查看帮助
 go run cmd/migrate/main.go -help
@@ -286,7 +286,7 @@ export KUNPENG_CONFIG_PATH=configs/config.prod.yaml
    # 部署脚本中
    make migrate-config CONFIG=configs/config.prod.yaml
    # 然后启动应用
-   ./build/kunpeng -config=configs/config.prod.yaml
+   ./build/kunpeng -config configs/config.prod.yaml
    ```
 
 2. **开发环境**: 可以使用重置功能快速重建数据库

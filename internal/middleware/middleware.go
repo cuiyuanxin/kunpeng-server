@@ -15,12 +15,14 @@ import (
 
 // 重新导出通用中间件
 var (
-	CORS        = middleware.CORS
-	Logger      = middleware.Logger
-	Recovery    = middleware.Recovery
-	RequestID   = middleware.RequestID
-	Timeout     = middleware.Timeout
-	RateLimiter = middleware.RateLimiter
+	CORS           = middleware.CORS
+	Logger         = middleware.Logger
+	CustomLogger   = middleware.CustomLogger
+	Recovery       = middleware.Recovery
+	CustomRecovery = middleware.CustomRecovery
+	RequestID      = middleware.RequestID
+	Timeout        = middleware.Timeout
+	RateLimiter    = middleware.RateLimiter
 )
 
 // JWTAuth JWT认证中间件（项目特定）

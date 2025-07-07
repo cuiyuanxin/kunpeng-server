@@ -1,17 +1,17 @@
 package router
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/cuiyuanxin/kunpeng/internal/controller"
 	"github.com/cuiyuanxin/kunpeng/internal/middleware"
+	"github.com/gin-gonic/gin"
 )
 
 // RouteRegistry 路由注册器
 type RouteRegistry struct {
-	engine         *gin.Engine
-	userController *controller.UserController
-	adminController *controller.AdminController
-	authMiddleware *middleware.AuthMiddleware
+	engine           *gin.Engine
+	userController   *controller.UserController
+	adminController  *controller.AdminController
+	authMiddleware   *middleware.AuthMiddleware
 	casbinMiddleware *middleware.CasbinMiddleware
 }
 
@@ -36,16 +36,16 @@ func NewRouteRegistry(
 func (rr *RouteRegistry) RegisterRoutes() {
 	// 注册API路由
 	rr.registerAPIRoutes()
-	
+
 	// 注册健康检查路由
 	rr.registerHealthRoutes()
-	
+
 	// 注册Swagger路由
 	rr.registerSwaggerRoutes()
-	
+
 	// 注册静态文件路由
 	rr.registerStaticRoutes()
-	
+
 	// 注册404处理
 	rr.registerNotFoundHandler()
 }
@@ -59,7 +59,6 @@ func (rr *RouteRegistry) registerAPIRoutes() {
 			// 认证相关路由（无需认证）
 			auth := v1.Group("/auth")
 			{
-				auth.POST("/register", rr.userController.Register)
 				auth.POST("/login", rr.userController.Login)
 			}
 
@@ -133,7 +132,7 @@ func (rr *RouteRegistry) registerHealthRoutes() {
 		})
 		health.GET("/status", func(c *gin.Context) {
 			c.JSON(200, gin.H{
-				"status": "ok",
+				"status":  "ok",
 				"service": "kunpeng-server",
 				"version": "1.0.0",
 			})

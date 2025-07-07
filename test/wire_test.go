@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/cuiyuanxin/kunpeng/internal/config"
-	"github.com/cuiyuanxin/kunpeng/internal/wire"
+	"github.com/cuiyuanxin/kunpeng/cmd/wire"
 )
 
 // TestWireInitialization 测试Wire依赖注入初始化
@@ -42,11 +42,11 @@ func TestWireInitialization(t *testing.T) {
 	assert.NotNil(t, app.DB)
 	assert.NotNil(t, app.JWTManager)
 	assert.NotNil(t, app.UserService)
-	assert.NotNil(t, app.AdminUserService)
-	assert.NotNil(t, app.AdminRoleService)
-	assert.NotNil(t, app.AdminPermissionService)
-	assert.NotNil(t, app.AdminDepartmentService)
+	assert.NotNil(t, app.RoleService)
 	assert.NotNil(t, app.PermissionService)
+	assert.NotNil(t, app.DepartmentService)
+	assert.NotNil(t, app.FileService)
+	assert.NotNil(t, app.StatService)
 
 	// 验证配置
 	assert.Equal(t, "test-app", app.Config.App.Name)
@@ -99,5 +99,5 @@ func TestWireServiceDependencies(t *testing.T) {
 	// 验证服务实例的唯一性（每次调用InitializeApp应该创建新的服务实例）
 	app2 := wire.InitializeApp(cfg, db)
 	assert.NotSame(t, app.UserService, app2.UserService)
-	assert.NotSame(t, app.AdminUserService, app2.AdminUserService)
+	assert.NotSame(t, app.RoleService, app2.RoleService)
 }

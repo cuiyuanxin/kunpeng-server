@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/cuiyuanxin/kunpeng/pkg/response"
 )
 
 // ErrorCode 错误码类型
@@ -176,7 +175,10 @@ func HandleError(c *gin.Context, err error) {
 	}
 
 	// 其他错误统一处理为内部服务器错误
-	response.ServerError(c, "服务器内部错误")
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"code":    ErrCodeInternalError,
+		"message": "服务器内部错误",
+	})
 }
 
 // NewBusinessError 创建新的业务错误
@@ -200,4 +202,39 @@ func GetErrorCode(err error) ErrorCode {
 		return bizErr.Code
 	}
 	return ErrCodeInternalError
+}
+
+
+
+
+
+// SetError 设置错误到Gin上下文
+func SetError(c *gin.Context, err error) {
+	c.Error(err)
+}
+
+// SetValidationError 设置验证错误
+func SetValidationError(c *gin.Context, err error) {
+	if err != nil {
+		c.Error(ErrValidationFailed.WithDetails(err.Error()))
+	}
+}
+
+// SetDatabaseError 设置数据库错误
+func SetDatabaseError(c *gin.Context, err error) {
+	if err != nil {
+		c.Error(ConvertGormError(err))
+	}
+}
+
+// AbortWithError 中断请求并返回错误
+func AbortWithError(c *gin.Context, err error) {
+	HandleError(c, err)
+	c.Abort()
+}
+
+// AbortWithBusinessError 中断请求并返回业务错误
+func AbortWithBusinessError(c *gin.Context, bizErr *BusinessError) {
+	HandleError(c, bizErr)
+	c.Abort()
 }
