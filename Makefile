@@ -17,12 +17,12 @@ DOCKER_IMAGE=$(APP_NAME)
 DOCKER_TAG=latest
 
 # 版本信息
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-BUILD_TIME = $(shell date '+%Y-%m-%d %H:%M:%S')
-GIT_COMMIT = $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+BUILD_TIME := $(shell date '+%Y-%m-%d %H:%M:%S')
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 # 构建标志
-LDFLAGS = -ldflags "-X 'main.Version=$(VERSION)' -X 'main.BuildTime=$(BUILD_TIME)' -X 'main.GitCommit=$(GIT_COMMIT)'"
+LDFLAGS := -ldflags "-X main.Version=$(VERSION) -X 'main.BuildTime=$(BUILD_TIME)' -X main.GitCommit=$(GIT_COMMIT)"
 
 # 默认目标
 .PHONY: all
